@@ -1,0 +1,26 @@
+plugins {
+	id 'org.springframework.boot' version '2.2.0.M4'
+	id 'java'
+	id 'net.ltgt.apt-idea' version "0.15"
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+//	compileOnly files('lib/processor-modul-1.0-SNAPSHOT.jar')
+//	annotationProcessor files('lib/processor-modul-1.0-SNAPSHOT.jar')
+
+	compileOnly project(':processor-modul')
+	annotationProcessor project(':processor-modul')
+
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+}
