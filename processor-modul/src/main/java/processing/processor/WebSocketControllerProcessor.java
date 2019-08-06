@@ -22,7 +22,6 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import org.springframework.web.util.pattern.PathPattern;
 import processing.annotation.WebSocketController;
 import processing.annotation.WebSocketHandler;
 
@@ -45,13 +44,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-@SupportedAnnotationTypes({"processing.annotation.WebSocketController", "processing.annotation.WebSocketHandler"})
+@SupportedAnnotationTypes({"processing.annotation.WebSocketController", "processing.annotation.WebSocketHandler", "org.springframework.context.annotation.Configuration"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class WebSocketControllerProcessor extends AbstractProcessor {
 
     private static final String objectMapperName = "objectMapper";
     private static final String wsSession = "wsSession";
     private static final String message = "message";
+    private static final String NAME_VAR_REGISTRY = "registry";
+
+    private String basePackage;
+
     Filer filer;
     TypeSpec configFile;
     Types typeUtils;
@@ -64,12 +67,22 @@ public class WebSocketControllerProcessor extends AbstractProcessor {
         elementUtils = processingEnv.getElementUtils();
     }
 
+
+    private void findConfigPackage(RoundEnvironment roundEnv) {
+        for (Element element : roundEnv.getElementsAnnotatedWith(Configuration.class)) {
+            basePackage = elementUtils.getPackageOf(element).toString();
+            break;
+        }
+    }
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        String registry = "registry";
+        findConfigPackage(roundEnv);
+
         List<FieldSpec> fields = new ArrayList<>();
-        MethodSpec.Builder builderConstructor = MethodSpec.constructorBuilder();
-        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+
+        MethodSpec.Builder configClassConstructorBuilder = MethodSpec.constructorBuilder();
+        CodeBlock.Builder configClassBodyConstructorBuilder = CodeBlock.builder();
         String configFilePackage = "";
 
         for (Element element : roundEnv.getElementsAnnotatedWith(WebSocketController.class)) {
@@ -84,18 +97,18 @@ public class WebSocketControllerProcessor extends AbstractProcessor {
                     .build();
             fields.add(filed);
 
-            builderConstructor.addParameter(
+            configClassConstructorBuilder.addParameter(
                     ParameterSpec.builder(type, nameField).build()
             );
-            builderConstructor.addCode(
+            configClassConstructorBuilder.addCode(
                     CodeBlock.builder()
                             .addStatement("this." + nameField + " = " + nameField)
                             .build()
             );
             WebSocketController annotation = element.getAnnotation(WebSocketController.class);
             String url = annotation.url();
-            String format = registry + ".addHandler(" + nameField + ", \"" + url + "\")";
-            codeBuilder.addStatement(format);
+            String format = NAME_VAR_REGISTRY + ".addHandler(" + nameField + ", \"" + url + "\")";
+            configClassBodyConstructorBuilder.addStatement(format);
 
         }
         if (configFile != null) {
@@ -110,11 +123,11 @@ public class WebSocketControllerProcessor extends AbstractProcessor {
                         .addModifiers(Modifier.PUBLIC)
                         .returns(void.class)
                         .addParameter(WebSocketHandlerRegistry.class, registry)
-                        .addCode(codeBuilder.build())
+                        .addCode(configClassBodyConstructorBuilder.build())
                         .build())
                 .addAnnotation(Configuration.class)
                 .addAnnotation(EnableWebSocket.class)
-                .addMethod(builderConstructor.build())
+                .addMethod(configClassConstructorBuilder.build())
                 .addSuperinterface(WebSocketConfigurer.class)
                 .build();
 
