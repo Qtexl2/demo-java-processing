@@ -1,6 +1,7 @@
 package com.example.demo.controller.testik;
 
 import org.springframework.web.socket.WebSocketSession;
+import processing.annotation.ConnectionClosedHandler;
 import processing.annotation.WebSocketController;
 import processing.annotation.WebSocketHandler;
 
@@ -20,5 +21,10 @@ public class UserWsHandler {
         System.out.println(dToshka);
         System.out.println(ws.getId());
         System.out.println("lol login");
+    }
+
+    @ConnectionClosedHandler
+    public void vycluchi(WebSocketSession wsSession){
+        System.out.println("OUT!");
     }
 }
